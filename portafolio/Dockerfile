@@ -1,34 +1,22 @@
-# Stage 1: Build
+# Stage 1: Build static site
 FROM oven/bun:1-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
 COPY package.json bun.lock* ./
 
-# Install dependencies
 RUN bun install
 
-# Copy source code
 COPY . .
 
-# Build the application
 RUN bun --bun run build
 
-# Stage 2: Production
-FROM oven/bun:1-alpine
+# Stage 2: Serve prerendered files
+FROM nginx:1-alpine
 
-WORKDIR /app
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/build /usr/share/nginx/html
 
-# Copy built files from builder stage
-COPY --from=builder /app/build ./build
-
-# Copy package.json for potential runtime dependencies
-COPY --from=builder /app/package.json ./
-
-# Expose port 3000 (default SvelteKit port)
 EXPOSE 80
 
-# Start the server with bun
-CMD ["bun", "./build/index.js"]
-
+CMD ["nginx", "-g", "daemon off;"]
